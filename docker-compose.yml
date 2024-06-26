@@ -1,0 +1,78 @@
+version: "3.3"
+services:
+  # we named our first service 'web'
+  web:
+    # build a custom image
+    build:
+      context: .
+      dockerfile: Dockerfile
+    #restart: on-failure
+
+    # map host port 8001 to container port 8000
+    ports:
+      - 8012:8000
+      # volumes are like shared folders
+      # container will see your local code changes
+    volumes:
+      - ./:/var/www/html
+    # first load the 'db' service
+    depends_on:
+      - db
+    # make 'db' a known service/host inside of 'web'
+    # use this to make a mysql connection to host 'db'
+    links:
+      - db
+    networks:
+      - default
+  db:
+    # use a default image
+    image: mysql:8.0
+    #restart: on-failure
+    volumes:
+      - ./.mysql:/var/lib/mysql:rw
+      - ./mysql-dev-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # again, port mapping
+    # e.g. to use Sequel Pro on our mac
+    ports:
+      - 3309:3309
+    # the mysql image uses these to create database and users
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_symfonyRestApi
+
+    networks:
+      - default
+
+  # phpmyadmin
+  phpmyadmin:
+    depends_on:
+      - db
+    image: phpmyadmin
+    restart: always
+    ports:
+      - "8093:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: password
+
+###> doctrine/doctrine-bundle ###
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      # You should definitely change the password in production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
+###< doctrine/doctrine-bundle ###
+
+networks:
+  default:
+    driver: bridge
+volumes:
+###> doctrine/doctrine-bundle ###
+  database_data:
+###< doctrine/doctrine-bundle ###
